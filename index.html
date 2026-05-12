@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+  <meta name="theme-color" content="#0A0A0F">
+  <meta name="description" content="KYUB - L'appli de révision 3D, sociale et gamifiée pour collégiens et lycéens">
+  <title>KYUB — Éducation & Révision</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Outfit:wght@600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/variables.css">
+  <link rel="stylesheet" href="css/components.css">
+</head>
+<body>
+<div id="app">
+
+  <!-- SPLASH SCREEN -->
+  <div class="splash" id="splash">
+    <img src="assets/logo.png" alt="KYUB Logo">
+    <div class="brand-text">KYUB</div>
+  </div>
+
+  <!-- ONBOARDING -->
+  <div class="screen onboarding" id="screen-onboarding">
+    <!-- Step 0: Nickname -->
+    <div class="onboard-step active" id="onboard-0">
+      <div style="font-size:3rem">🎲</div>
+      <h1 class="onboard-title">Bienvenue sur KYUB</h1>
+      <p class="onboard-subtitle">Choisis ton surnom de Kyuber</p>
+      <input type="text" class="onboard-input" id="input-nickname" placeholder="Ton surnom..." maxlength="20" autocomplete="off">
+      <button class="btn-primary" onclick="App.nextOnboard()">Continuer</button>
+    </div>
+    <!-- Step 1: Class Level -->
+    <div class="onboard-step" id="onboard-1">
+      <h1 class="onboard-title">Ton niveau</h1>
+      <p class="onboard-subtitle">En quelle classe es-tu ?</p>
+      <div class="level-grid" id="level-grid"></div>
+      <button class="btn-primary" onclick="App.nextOnboard()">Continuer</button>
+    </div>
+    <!-- Step 2: Specialties (1ère/Tle) -->
+    <div class="onboard-step" id="onboard-2">
+      <h1 class="onboard-title">Tes spécialités</h1>
+      <p class="onboard-subtitle" id="spec-subtitle">Choisis tes 3 spécialités</p>
+      <div class="specialty-grid" id="specialty-grid"></div>
+      <button class="btn-primary" onclick="App.nextOnboard()">Continuer</button>
+    </div>
+    <!-- Step 3: Disciplines -->
+    <div class="onboard-step" id="onboard-3">
+      <h1 class="onboard-title">Tes matières</h1>
+      <p class="onboard-subtitle">Abonne-toi aux disciplines que tu veux réviser</p>
+      <div class="discipline-grid" id="disc-grid"></div>
+      <button class="btn-primary" onclick="App.nextOnboard()">C'est parti ! 🚀</button>
+    </div>
+  </div>
+
+  <!-- FEED -->
+  <div class="screen" id="screen-feed">
+    <div style="padding:16px 16px 4px;display:flex;align-items:center;justify-content:space-between">
+      <h1 style="font-family:var(--font-display);font-size:1.4rem;font-weight:800" class="text-gradient">KYUB</h1>
+      <span style="font-size:.8rem;color:var(--text-muted)">🔥 <span id="feed-streak">5</span> jours</span>
+    </div>
+    <div class="stories-bar" id="stories-bar"></div>
+    <div class="feed" id="feed-posts"></div>
+  </div>
+
+  <!-- KYUB MODE -->
+  <div class="screen kyub-screen" id="screen-kyub">
+    <div class="kyub-hud">
+      <span class="kyub-chapter" id="kyub-chapter">⚛️ Principe d'inertie</span>
+      <div class="kyub-difficulty" id="kyub-dots"></div>
+    </div>
+    <div class="kyub-container" id="kyub-container">
+      <div class="cube-wrapper">
+        <div class="cube" id="cube">
+          <div class="cube-face front"></div>
+          <div class="cube-face right"></div>
+          <div class="cube-face left"></div>
+          <div class="cube-face top"></div>
+          <div class="cube-face bottom"></div>
+          <div class="cube-face back"></div>
+        </div>
+      </div>
+    </div>
+    <div class="swipe-hints">
+      <span class="swipe-hint">← Facile</span>
+      <span class="swipe-hint">↑ Suivante</span>
+      <span class="swipe-hint">↓ Quitter</span>
+      <span class="swipe-hint">Difficile →</span>
+    </div>
+  </div>
+
+  <!-- FLASHCARDS -->
+  <div class="screen flash-screen" id="screen-flashcards">
+    <div style="text-align:center;padding:16px">
+      <h2 style="font-family:var(--font-display);font-size:1.2rem" class="text-gradient">Flash-Swipe</h2>
+      <p style="font-size:.75rem;color:var(--text-muted)">Swipe ❤️ si maîtrisé, ✖️ si à revoir</p>
+    </div>
+    <div class="flash-deck" id="flash-deck"></div>
+    <div class="flash-actions">
+      <button class="flash-btn reject" onclick="App.swipeFlash('left')">✖</button>
+      <button class="flash-btn flip-btn" onclick="document.getElementById('current-flash')?.classList.toggle('flipped')">↻</button>
+      <button class="flash-btn accept" onclick="App.swipeFlash('right')">♡</button>
+    </div>
+    <div class="flash-progress" id="flash-progress">1 / 8</div>
+  </div>
+
+  <!-- SEARCH -->
+  <div class="screen search-screen" id="screen-search">
+    <h2 style="font-family:var(--font-display);font-size:1.2rem;margin-bottom:16px" class="text-gradient">Explorer les matières</h2>
+    <div class="search-wrap">
+      <span class="search-icon">🔍</span>
+      <input type="text" class="search-bar" placeholder="Rechercher une discipline..." id="search-input" oninput="App.filterSearch(this.value)">
+    </div>
+    <div class="search-section-title">Toutes les disciplines</div>
+    <div class="search-disc-list" id="search-list"></div>
+  </div>
+
+  <!-- CHAT -->
+  <div class="screen chat-screen" id="screen-chat">
+    <div class="chat-header">
+      <h2 class="text-gradient">🧪 Assistant Labo</h2>
+      <p>Pose tes questions, j'explique comme sur TikTok</p>
+    </div>
+    <div class="chat-messages" id="chat-messages"></div>
+    <div class="chat-input-wrap">
+      <input type="text" class="chat-input" id="chat-input" placeholder="Demande-moi n'importe quoi..." onkeydown="if(event.key==='Enter')App.sendChat()">
+      <button class="chat-send" onclick="App.sendChat()">➤</button>
+    </div>
+  </div>
+
+  <!-- PROFILE -->
+  <div class="screen profile-screen" id="screen-profile">
+    <div class="profile-header">
+      <div class="profile-avatar">🎲</div>
+      <div class="profile-name" id="profile-nickname">Kyuber</div>
+      <div class="profile-level" id="profile-level-text">Niveau 1 · 0 XP</div>
+      <div class="streak-badge" id="profile-streak">🔥 5 jours</div>
+    </div>
+    <div class="stats-grid" id="profile-stats"></div>
+    <div class="mastery-section">
+      <div class="mastery-title">📊 Maîtrise par matière</div>
+      <div id="mastery-bars"></div>
+    </div>
+    <div class="collection-title">🏆 Ma collection de Kyubs</div>
+    <div class="collection-grid" id="collection-grid"></div>
+  </div>
+
+  <!-- STORY VIEWER -->
+  <div class="story-viewer" id="story-viewer">
+    <div class="story-progress">
+      <div class="story-progress-bar"><div class="fill"></div></div>
+      <div class="story-progress-bar"><div class="fill"></div></div>
+      <div class="story-progress-bar"><div class="fill"></div></div>
+    </div>
+    <div class="story-top">
+      <span class="st-icon">⚛️</span>
+      <span class="st-name">Physique</span>
+      <button class="story-close">✕</button>
+    </div>
+    <div class="story-content">
+      <h2></h2>
+      <p></p>
+      <div class="formula"></div>
+    </div>
+  </div>
+
+  <!-- BOTTOM NAV -->
+  <nav class="bottom-nav" style="display:none">
+    <button class="nav-item" data-screen="feed">
+      <span class="nav-icon">🏠</span>Feed
+    </button>
+    <button class="nav-item" data-screen="search">
+      <span class="nav-icon">🔍</span>Explorer
+    </button>
+    <button class="nav-item center-kyub" data-screen="kyub">
+      <span class="nav-icon">🎲</span>Kyub
+    </button>
+    <button class="nav-item" data-screen="flashcards">
+      <span class="nav-icon">🃏</span>Flash
+    </button>
+    <button class="nav-item" data-screen="chat">
+      <span class="nav-icon">💬</span>Chat
+    </button>
+    <button class="nav-item" data-screen="profile">
+      <span class="nav-icon">👤</span>Profil
+    </button>
+  </nav>
+</div>
+
+<script src="js/mockData.js"></script>
+<script src="js/app.js"></script>
+<script>
+// Populate onboarding grids
+const levelGrid = document.getElementById('level-grid');
+CLASS_LEVELS.forEach(l => {
+  const btn = document.createElement('button');
+  btn.className = 'level-btn'; btn.dataset.level = l.id;
+  btn.textContent = l.label;
+  btn.onclick = () => App.selectLevel(l.id);
+  levelGrid.appendChild(btn);
+});
+const specGrid = document.getElementById('specialty-grid');
+SPECIALTIES.forEach(s => {
+  const btn = document.createElement('button');
+  btn.className = 'spec-btn'; btn.dataset.id = s.id;
+  btn.innerHTML = `<span style="font-size:1.4rem">${s.icon}</span>${s.name}`;
+  btn.onclick = () => App.toggleSpecialty(s.id);
+  specGrid.appendChild(btn);
+});
+const discGrid = document.getElementById('disc-grid');
+DISCIPLINES.forEach(d => {
+  const btn = document.createElement('button');
+  btn.className = 'disc-btn'; btn.dataset.id = d.id;
+  btn.innerHTML = `<span class="disc-icon">${d.icon}</span><span class="disc-name">${d.name}</span>`;
+  btn.onclick = () => App.toggleDiscipline(d.id);
+  discGrid.appendChild(btn);
+});
+// Search filter
+App.filterSearch = function(q) {
+  const items = document.querySelectorAll('.search-disc-item');
+  items.forEach(el => {
+    const name = el.querySelector('.sdi-name').textContent.toLowerCase();
+    el.style.display = name.includes(q.toLowerCase()) ? 'flex' : 'none';
+  });
+};
+</script>
+</body>
+</html>
