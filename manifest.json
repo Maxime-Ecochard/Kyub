@@ -1,0 +1,21 @@
+{
+  "name": "KYUB - Éducation & Révision",
+  "short_name": "KYUB",
+  "description": "L'appli de révision 3D, sociale et gamifiée pour collégiens et lycéens.",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#0A0A0F",
+  "theme_color": "#0A0A0F",
+  "icons": [
+    {
+      "src": "assets/logo.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "assets/logo.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
