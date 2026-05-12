@@ -8,6 +8,10 @@
   <title>KYUB — Éducation & Révision</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Outfit:wght@600;700;800&display=swap" rel="stylesheet">
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="assets/logo.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <link rel="stylesheet" href="css/variables.css">
   <link rel="stylesheet" href="css/components.css">
 </head>
@@ -16,8 +20,20 @@
 
   <!-- SPLASH SCREEN -->
   <div class="splash" id="splash">
-    <img src="assets/logo.png" alt="KYUB Logo">
+    <img src="assets/logo.png" alt="KYUB Logo" id="splash-logo">
     <div class="brand-text">KYUB</div>
+  </div>
+
+  <!-- PWA INSTALL BANNER -->
+  <div class="pwa-banner" id="pwa-banner">
+    <div class="pwa-info">
+      <h4>Installer KYUB</h4>
+      <p>Ajoute l'app sur ton écran d'accueil</p>
+    </div>
+    <div class="pwa-actions">
+      <button class="btn-pwa dismiss" onclick="App.dismissPWA()">Plus tard</button>
+      <button class="btn-pwa install" onclick="App.installPWA()">Installer</button>
+    </div>
   </div>
 
   <!-- ONBOARDING -->
@@ -87,6 +103,17 @@
       <span class="swipe-hint">↓ Quitter</span>
       <span class="swipe-hint">Difficile →</span>
     </div>
+    <button class="btn-grandkyub" onclick="App.showScreen('grandkyub')">🏆 Grand Kyub — Évaluation 6 faces</button>
+  </div>
+
+  <!-- GRAND KYUB (6-face evaluation) -->
+  <div class="screen grandkyub-screen" id="screen-grandkyub">
+    <div class="gk-header">
+      <button class="gk-back" onclick="App.showScreen('kyub')">← Retour</button>
+      <h2 class="text-gradient">Grand Kyub</h2>
+      <p style="font-size:.75rem;color:var(--text-muted)">Complète les 6 faces pour valider ton Kyub</p>
+    </div>
+    <div class="gk-content" id="grandkyub-content"></div>
   </div>
 
   <!-- FLASHCARDS -->
@@ -188,6 +215,8 @@
 </div>
 
 <script src="js/mockData.js"></script>
+<script src="js/educational_database.js"></script>
+<script src="js/feed_database.js"></script>
 <script src="js/app.js"></script>
 <script>
 // Populate onboarding grids

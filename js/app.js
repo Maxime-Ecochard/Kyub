@@ -5,9 +5,31 @@ const App = {
   profile: JSON.parse(JSON.stringify(DEFAULT_PROFILE)),
   kyubState: { chapterIdx: 0, difficulty: 1, questionIdx: 0 },
   flashState: { cardIdx: 0, mastered: 0, toReview: 0 },
+  grandKyubMode: false,
+  grandKyubFace: 0,
+  grandKyubScore: 0,
+  deferredPrompt: null,
 
   init() {
     this.loadProfile();
+    // Register Service Worker
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('./sw.js').catch(console.error);
+    }
+    // PWA Prompt
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      this.deferredPrompt = e;
+      if (!localStorage.getItem('kyub_pwa_dismissed')) {
+        document.getElementById('pwa-banner').classList.add('show');
+      }
+    });
+    // Reset disciplines for fresh onboarding
+    if (!this.profile.nickname) {
+      this.profile.subscribedDisciplines = [];
+      this.profile.specialties = [];
+      this.profile.classLevel = '';
+    }
     setTimeout(() => {
       const splash = document.querySelector('.splash');
       splash.classList.add('hide');
@@ -34,12 +56,13 @@ const App = {
       n.classList.toggle('active', n.dataset.screen === id);
     });
     const nav = document.querySelector('.bottom-nav');
-    nav.style.display = (id === 'onboarding') ? 'none' : 'flex';
+    nav.style.display = (id === 'onboarding' || id === 'grandkyub') ? 'none' : 'flex';
     if (id === 'feed') this.renderFeed();
     if (id === 'kyub') this.renderKyub();
     if (id === 'flashcards') this.renderFlashcards();
     if (id === 'profile') this.renderProfile();
     if (id === 'search') this.renderSearch();
+    if (id === 'grandkyub') this.renderGrandKyub();
     if (id === 'chat') this.renderChat();
   },
 
@@ -47,6 +70,21 @@ const App = {
     document.querySelectorAll('.nav-item').forEach(n => {
       n.addEventListener('click', () => this.showScreen(n.dataset.screen));
     });
+  },
+
+  installPWA() {
+    const banner = document.getElementById('pwa-banner');
+    if(banner) banner.classList.remove('show');
+    if (this.deferredPrompt) {
+      this.deferredPrompt.prompt();
+      this.deferredPrompt.userChoice.then(() => { this.deferredPrompt = null; });
+    }
+  },
+
+  dismissPWA() {
+    const banner = document.getElementById('pwa-banner');
+    if(banner) banner.classList.remove('show');
+    localStorage.setItem('kyub_pwa_dismissed', '1');
   },
 
   // === ONBOARDING ===
@@ -105,7 +143,9 @@ const App = {
     this.renderStories();
     const feed = document.getElementById('feed-posts');
     feed.innerHTML = '';
-    FEED_POSTS.forEach((p, i) => {
+    const allPosts = [...FEED_POSTS, ...FEED_DATABASE];
+    allPosts.sort((a, b) => b.id.localeCompare(a.id)); // Simple shuffle/order
+    allPosts.forEach((p, i) => {
       const disc = DISCIPLINES.find(d => d.id === p.disciplineId);
       const div = document.createElement('div');
       div.className = 'feed-post';
@@ -208,7 +248,26 @@ const App = {
 
     const cube = document.getElementById('cube');
     const faces = cube.querySelectorAll('.cube-face');
-    const q = qs.find(qq => qq.difficulty === diff) || qs[0];
+    
+    // Get questions from new database if available
+    let currentQs = qs;
+    const dbLvl = EDUCATIONAL_DB[this.profile.classLevel || 'seconde'];
+    if (dbLvl && dbLvl[ch.disciplineId]) {
+      const dbChapter = dbLvl[ch.disciplineId].chapters.find(c => c.id === ch.id || c.title === ch.title);
+      if (dbChapter) {
+        currentQs = dbChapter.qcm.map((q, idx) => ({
+          id: `db-${idx}`,
+          chapterId: ch.id,
+          difficulty: q.d,
+          question: q.q,
+          options: q.a,
+          correctAnswer: q.c,
+          explanation: q.e
+        }));
+      }
+    }
+
+    const q = currentQs.find(qq => qq.difficulty === diff) || currentQs[0];
     if (q) {
       faces[0].innerHTML = `<div class="face-question">${q.question}</div>
         <div class="face-options">${(q.options||[]).map((o,i) =>
@@ -280,8 +339,27 @@ const App = {
 
   // === FLASHCARDS ===
   renderFlashcards() {
-    const deck = document.getElementById('flash-deck');
-    const fcs = FLASHCARDS.slice();
+    let fcs = FLASHCARDS.slice();
+    const dbLvl = EDUCATIONAL_DB[this.profile.classLevel || 'seconde'];
+    if (dbLvl) {
+      const subDiscs = this.profile.subscribedDisciplines;
+      let allDbCards = [];
+      subDiscs.forEach(dId => {
+        if (dbLvl[dId]) {
+          dbLvl[dId].chapters.forEach(ch => {
+            ch.flashcards.forEach((fc, idx) => {
+              allDbCards.push({
+                id: `db-fc-${dId}-${idx}`,
+                chapterId: ch.id,
+                recto: fc.r,
+                verso: fc.v
+              });
+            });
+          });
+        }
+      });
+      if (allDbCards.length > 0) fcs = allDbCards;
+    }
     this.flashState = { cardIdx: 0, mastered: 0, toReview: 0, cards: fcs };
     this.renderCurrentFlashcard();
   },
@@ -305,12 +383,62 @@ const App = {
         <div class="card-label">${disc ? disc.icon+' '+disc.name : ''}</div>
         <div class="card-front"><div class="card-text">${fc.recto}</div></div>
         <div class="card-back"><div class="card-text">${fc.verso}</div></div>
-        <div style="margin-top:20px;font-size:.7rem;color:var(--text-muted)">Tape pour retourner</div>
+        <div class="flash-tap-hint">Tape pour retourner</div>
+        <div class="flash-swipe-indicator left-ind">✖ À revoir</div>
+        <div class="flash-swipe-indicator right-ind">♡ Maîtrisé</div>
       </div>`;
     const card = document.getElementById('current-flash');
-    card.onclick = () => card.classList.toggle('flipped');
+    card.addEventListener('click', (e) => {
+      if (!card._dragged) card.classList.toggle('flipped');
+      card._dragged = false;
+    });
+    this.initFlashSwipeGesture(card);
     document.getElementById('flash-progress').textContent =
       `${s.cardIdx + 1} / ${s.cards.length}`;
+  },
+
+  initFlashSwipeGesture(card) {
+    let startX = 0, startY = 0, currentX = 0, isDragging = false;
+    const onStart = (e) => {
+      const t = e.touches ? e.touches[0] : e;
+      startX = t.clientX; startY = t.clientY; currentX = 0;
+      isDragging = true; card._dragged = false;
+      card.style.transition = 'none';
+    };
+    const onMove = (e) => {
+      if (!isDragging) return;
+      const t = e.touches ? e.touches[0] : e;
+      currentX = t.clientX - startX;
+      const rotate = currentX * 0.08;
+      card.style.transform = `translateX(${currentX}px) rotate(${rotate}deg)`;
+      // Show indicators
+      const leftInd = card.querySelector('.left-ind');
+      const rightInd = card.querySelector('.right-ind');
+      if (leftInd) leftInd.style.opacity = currentX < -30 ? Math.min(1, Math.abs(currentX)/100) : 0;
+      if (rightInd) rightInd.style.opacity = currentX > 30 ? Math.min(1, currentX/100) : 0;
+      if (Math.abs(currentX) > 10) card._dragged = true;
+      e.preventDefault();
+    };
+    const onEnd = () => {
+      if (!isDragging) return;
+      isDragging = false;
+      card.style.transition = 'transform .4s ease, opacity .4s ease';
+      if (Math.abs(currentX) > 80) {
+        this.swipeFlash(currentX > 0 ? 'right' : 'left');
+      } else {
+        card.style.transform = '';
+        const leftInd = card.querySelector('.left-ind');
+        const rightInd = card.querySelector('.right-ind');
+        if (leftInd) leftInd.style.opacity = 0;
+        if (rightInd) rightInd.style.opacity = 0;
+      }
+    };
+    card.addEventListener('touchstart', onStart, {passive: true});
+    card.addEventListener('touchmove', onMove, {passive: false});
+    card.addEventListener('touchend', onEnd);
+    card.addEventListener('mousedown', onStart);
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onEnd);
   },
 
   swipeFlash(dir) {
@@ -419,6 +547,84 @@ const App = {
       msgs.innerHTML += `<div class="chat-msg bot">${responses[Math.floor(Math.random()*responses.length)]}</div>`;
       msgs.scrollTop = msgs.scrollHeight;
     }, 800);
+  },
+
+  // === GRAND KYUB (6-face evaluation) ===
+  renderGrandKyub() {
+    this.grandKyubFace = 0;
+    this.grandKyubScore = 0;
+    
+    // Choose chapter based on subscribed disciplines
+    const chapters = CHAPTERS.filter(c => this.profile.subscribedDisciplines.includes(c.disciplineId));
+    const ch = chapters[this.kyubState.chapterIdx % chapters.length] || CHAPTERS[0];
+    const disc = DISCIPLINES.find(d => d.id === ch.disciplineId);
+    
+    // Get questions from database
+    let qs = QUESTIONS.filter(q => q.chapterId === ch.id).sort((a,b) => a.difficulty - b.difficulty);
+    const dbLvl = EDUCATIONAL_DB[this.profile.classLevel || 'seconde'];
+    if (dbLvl && dbLvl[ch.disciplineId]) {
+      const dbChapter = dbLvl[ch.disciplineId].chapters.find(c => c.id === ch.id || c.title === ch.title);
+      if (dbChapter) {
+        qs = dbChapter.qcm.map((q, idx) => ({
+          id: `db-gk-${idx}`,
+          question: q.q,
+          options: q.a,
+          correctAnswer: q.c,
+          explanation: q.e,
+          difficulty: q.d
+        })).sort((a,b) => a.difficulty - b.difficulty);
+      }
+    }
+
+    const container = document.getElementById('grandkyub-content');
+    const renderFace = () => {
+      const face = this.grandKyubFace;
+      if (face >= 6) {
+        const mat = this.grandKyubScore >= 6 ? 'plasma' : this.grandKyubScore >= 5 ? 'or' : this.grandKyubScore >= 4 ? 'titane' : this.grandKyubScore >= 2 ? 'acier' : 'graphite';
+        const matData = KYUB_MATERIALS.find(m => m.id === mat);
+        container.innerHTML = `<div class="gk-result">
+          <div class="gk-cube-reward" style="border-color:${matData.color};box-shadow:0 0 30px ${matData.color}40">
+            <span style="font-size:2.5rem">${disc.icon}</span>
+            <span style="color:${matData.color};font-weight:700;font-size:1.1rem">${matData.name}</span>
+          </div>
+          <h2 style="margin:20px 0 8px">Kyub complété !</h2>
+          <p style="color:var(--text-muted)">${this.grandKyubScore}/6 faces réussies</p>
+          <button class="btn-primary" style="margin-top:24px;max-width:280px" onclick="App.showScreen('feed')">Retour au Feed</button>
+        </div>`;
+        return;
+      }
+      const q = qs[face % qs.length];
+      const labels = ['Définition','Application','Application','Analyse','Analyse','Master 🏆'];
+      const faceColors = ['#22C55E','#3B82F6','#3B82F6','#F59E0B','#F59E0B','#EF4444'];
+      container.innerHTML = `
+        <div class="gk-face-info">
+          <span class="gk-face-num" style="background:${faceColors[face]}20;color:${faceColors[face]}">Face ${face+1}/6</span>
+          <span class="gk-face-label">${labels[face]}</span>
+        </div>
+        <div class="gk-progress-cubes">${[0,1,2,3,4,5].map(i => `<div class="gk-mini-cube ${i < face ? 'done' : i === face ? 'current' : ''}" style="${i < face ? 'background:'+faceColors[i] : ''}"></div>`).join('')}</div>
+        <div class="gk-question-card glass-card" style="border-color:${faceColors[face]}40">
+          <p class="gk-q-text">${q.question}</p>
+          <div class="gk-options">${(q.options||[]).map((o,i) =>
+            `<button class="gk-option" onclick="App.answerGrandKyub(this,${i},${q.correctAnswer},${face})">${o}</button>`
+          ).join('')}</div>
+        </div>`;
+    };
+    renderFace();
+    this._renderGKFace = renderFace;
+  },
+
+  answerGrandKyub(btn, chosen, correct, face) {
+    const parent = btn.closest('.gk-options');
+    parent.querySelectorAll('.gk-option').forEach((o, i) => {
+      o.style.pointerEvents = 'none';
+      if (i === correct) o.classList.add('correct');
+      else if (i === chosen) o.classList.add('wrong');
+    });
+    if (chosen === correct) this.grandKyubScore++;
+    setTimeout(() => {
+      this.grandKyubFace++;
+      this._renderGKFace();
+    }, 900);
   },
 };
 
