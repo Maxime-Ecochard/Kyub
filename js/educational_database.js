@@ -106,6 +106,41 @@ const EDUCATIONAL_DB = {
         }
       ]
     },
+    chimie: {
+      chapters: [
+        {
+          id: 'chim-2de-atome',
+          title: 'Constitution de l\'atome',
+          qcm: [
+            { q: "De quoi est composé le noyau ?", a: ["Électrons", "Protons et Neutrons", "Vide", "Atomes"], c: 1, e: "Le noyau contient les nucléons.", d: 1 },
+            { q: "Charge d\'un proton ?", a: ["-e", "+e", "0", "2e"], c: 1, e: "Positif.", d: 1 },
+            { q: "Atome est neutre car :", a: ["Pas de charge", "P = E", "N = P", "Noyau = Vide"], c: 1, e: "Protons = Électrons.", d: 1 },
+            { q: "Masse atome ≈", a: ["Masse noyau", "Masse électrons", "Masse vide", "0"], c: 0, e: "Électrons négligeables.", d: 2 },
+            { q: "Z est le nombre de :", a: ["Nucléons", "Protons", "Neutrons", "Masse"], c: 1, e: "Numéro atomique.", d: 1 },
+            { q: "A est le nombre de :", a: ["Nucléons", "Protons", "Neutrons", "Masse"], c: 0, e: "Nombre de masse.", d: 2 },
+            { q: "Nombre de neutrons =", a: ["A + Z", "A - Z", "Z", "A"], c: 1, e: "N = A - Z.", d: 2 },
+            { q: "Taille atome vs Noyau ?", a: ["100x", "10^5x", "10^2x", "Pareil"], c: 1, e: "100 000 fois plus grand.", d: 2 },
+            { q: "Symbole Carbone ?", a: ["Ca", "Cb", "C", "Cr"], c: 2, e: "C.", d: 1 },
+            { q: "Isotopes ont même :", a: ["A", "Z", "N", "Masse"], c: 1, e: "Même Z, A différent.", d: 3 },
+            { q: "Anion a :", a: ["Gagné e-", "Perdu e-", "Gagné p+", "Perdu p+"], c: 0, e: "Charge négative.", d: 2 },
+            { q: "Cation a :", a: ["Gagné e-", "Perdu e-", "Gagné p+", "Perdu p+"], c: 1, e: "Charge positive.", d: 2 },
+            { q: "Cortège électronique :", a: ["Noyau", "Électrons", "Protons", "Neutrons"], c: 1, e: "Autour du noyau.", d: 1 },
+            { q: "Électrons de valence :", a: ["Cœur", "Dernière couche", "Noyau", "Tous"], c: 1, e: "Couche externe.", d: 2 },
+            { q: "Règle de l\'octet :", a: ["2 e-", "8 e-", "10 e-", "1 e-"], c: 1, e: "Stabilité à 8.", d: 3 },
+            { q: "Gaz nobles sont :", a: ["Réactifs", "Stables", "Liquides", "Acides"], c: 1, e: "Couche saturée.", d: 2 },
+            { q: "Symbole Azote ?", a: ["Az", "N", "A", "Ni"], c: 1, e: "Nitrogen.", d: 2 },
+            { q: "Symbole Oxygène ?", a: ["Ox", "O", "Oz", "Om"], c: 1, e: "O.", d: 1 },
+            { q: "Masse proton vs électron ?", a: ["Pareil", "p+ >> e-", "e- >> p+", "2x"], c: 1, e: "Environ 1836 fois.", d: 3 },
+            { q: "Atome : structure ...", a: ["Pleine", "Lacunaire", "Liquide", "Cubique"], c: 1, e: "Beaucoup de vide.", d: 2 }
+          ],
+          flashcards: [
+            { r: "Proton", v: "Charge + / Noyau" }, { r: "Neutron", v: "Charge 0 / Noyau" }, { r: "Électron", v: "Charge - / Cortège" },
+            { r: "Z", v: "Numéro atomique" }, { r: "A", v: "Nombre de nucléons" }, { r: "N", v: "A - Z (neutrons)" },
+            { r: "Isotope", v: "Même Z, A ≠" }, { r: "Cation", v: "Ion positif" }, { r: "Anion", v: "Ion négatif" }, { r: "Valence", v: "Électrons couche externe" }
+          ]
+        }
+      ]
+    },
     histoire: {
       chapters: [
         {

@@ -186,72 +186,100 @@ const DISCIPLINES = [
 ];
 
 const CHAPTERS = [
+  // Mathématiques - Seconde
+  {
+    id: 'maths-2de-nombres',
+    disciplineId: 'maths',
+    title: 'Nombres et calculs',
+    level: 'seconde',
+    order: 1,
+  },
   // Physique - Seconde
   {
-    id: 'phys-2-mouvement',
+    id: 'phys-2de-mouv',
     disciplineId: 'physique',
-    title: 'Description du mouvement',
+    title: 'Mouvement',
     level: 'seconde',
-    order: 1,
-  },
-  {
-    id: 'phys-2-forces',
-    disciplineId: 'physique',
-    title: 'Modélisation des forces',
-    level: 'seconde',
-    order: 2,
-  },
-  {
-    id: 'phys-2-signaux',
-    disciplineId: 'physique',
-    title: 'Émission et perception du son',
-    level: 'seconde',
-    order: 3,
-  },
-  // Physique - Première Spé
-  {
-    id: 'phys-1-inertie',
-    disciplineId: 'physique',
-    title: "Principe d'inertie",
-    level: 'premiere',
-    order: 1,
-  },
-  {
-    id: 'phys-1-energie',
-    disciplineId: 'physique',
-    title: 'Énergie mécanique',
-    level: 'premiere',
-    order: 2,
-  },
-  // Physique - Terminale Spé
-  {
-    id: 'phys-t-newton',
-    disciplineId: 'physique',
-    title: 'Lois de Newton',
-    level: 'terminale',
     order: 1,
   },
   // Chimie - Seconde
   {
-    id: 'chim-2-atome',
+    id: 'chim-2de-atome',
     disciplineId: 'chimie',
-    title: "Constitution de l'atome",
+    title: 'Constitution de l\'atome',
     level: 'seconde',
     order: 1,
   },
+  // SVT - Seconde
   {
-    id: 'chim-2-mole',
-    disciplineId: 'chimie',
-    title: 'La mole',
+    id: 'svt-2de-adn',
+    disciplineId: 'svt',
+    title: 'ADN et Cellule',
     level: 'seconde',
-    order: 2,
+    order: 1,
   },
-  // Chimie - Première Spé
+  // Histoire - Seconde
   {
-    id: 'chim-1-reactions',
-    disciplineId: 'chimie',
-    title: 'Réactions chimiques',
-    level: 'premiere',
+    id: 'hist-2de-antiq',
+    disciplineId: 'histoire',
+    title: 'Monde Méditerranéen Antique',
+    level: 'seconde',
+    order: 1,
+  },
+  // Français - Seconde
+  {
+    id: 'fra-2de-recit',
+    disciplineId: 'francais',
+    title: 'Le Récit au XIXème',
+    level: 'seconde',
+    order: 1,
+  },
+  // SES - Seconde
+  {
+    id: 'ses-2de-intro',
+    disciplineId: 'ses',
+    title: 'Introduction aux SES',
+    level: 'seconde',
+    order: 1,
+  },
+  // Anglais - Seconde
+  {
+    id: 'ang-2de-culture',
+    disciplineId: 'anglais',
+    title: 'Language & Culture',
+    level: 'seconde',
+    order: 1,
+  },
+  // Espagnol - Seconde
+  {
+    id: 'esp-2de-basicos',
+    disciplineId: 'espagnol',
+    title: 'Lengua y Cultura',
+    level: 'seconde',
+    order: 1,
+  },
+  // Géographie - Seconde
+  {
+    id: 'geo-2de-dev',
+    disciplineId: 'geo',
+    title: 'Enjeux du développement',
+    level: 'seconde',
+    order: 1,
+  },
+  // Mathématiques - 3ème
+  {
+    id: 'maths-3eme-geometrie',
+    disciplineId: 'maths',
+    title: 'Pythagore et Thalès',
+    level: '3eme',
+    order: 1,
+  },
+  // Physique-Chimie - 3ème
+  {
+    id: 'pc-3eme-atome',
+    disciplineId: 'physique',
+    title: 'Atomes et Ions',
+    level: '3eme',
     order: 1,
   },
 ];

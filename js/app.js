@@ -273,6 +273,11 @@ const App = {
         <div class="face-options">${(q.options||[]).map((o,i) =>
           `<button class="face-option" onclick="App.answerKyub(this,${i},${q.correctAnswer})">${o}</button>`
         ).join('')}</div>`;
+    } else {
+      faces[0].innerHTML = `<div class="face-question" style="opacity:0.6;font-size:1rem">
+        Désolé, aucune question disponible pour ce chapitre et ce niveau.<br><br>
+        <button class="btn-primary" style="padding:8px 16px;font-size:0.8rem" onclick="App.showScreen('feed')">Retour au Feed</button>
+      </div>`;
     }
     // Adjacent faces hint
     faces[1].innerHTML = `<div style="font-size:2rem;margin-bottom:12px">🔥</div><p style="color:var(--text-muted);font-size:.85rem">Plus difficile →</p>`;
