@@ -13,24 +13,26 @@ const App = {
   init() {
     // Force clean old service worker caches once
     const CURRENT_VERSION = '2.2';
-    try {
-      if (localStorage.getItem('kyub_version') !== CURRENT_VERSION) {
-        if ('serviceWorker' in navigator) {
-          navigator.serviceWorker.getRegistrations().then(regs => {
-            regs.forEach(r => r.unregister());
-          });
+    if (window.location.protocol !== 'file:') {
+      try {
+        if (localStorage.getItem('kyub_version') !== CURRENT_VERSION) {
+          if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.getRegistrations().then(regs => {
+              regs.forEach(r => r.unregister());
+            });
+          }
+          if ('caches' in window) {
+            caches.keys().then(keys => keys.forEach(k => caches.delete(k)));
+          }
+          localStorage.setItem('kyub_version', CURRENT_VERSION);
+          if (localStorage.getItem('kyub_version') === CURRENT_VERSION) {
+            setTimeout(() => window.location.reload(), 300);
+            return;
+          }
         }
-        if ('caches' in window) {
-          caches.keys().then(keys => keys.forEach(k => caches.delete(k)));
-        }
-        localStorage.setItem('kyub_version', CURRENT_VERSION);
-        if (localStorage.getItem('kyub_version') === CURRENT_VERSION) {
-          setTimeout(() => window.location.reload(), 300);
-          return;
-        }
+      } catch (e) {
+        console.warn("Could not write version to localStorage (likely disk full or sandboxed):", e);
       }
-    } catch (e) {
-      console.warn("Could not write version to localStorage (likely disk full or sandboxed):", e);
     }
 
     this.loadProfile();
@@ -93,7 +95,13 @@ const App = {
       this.profile.classLevel = 'seconde';
     }
   },
-  saveProfile() { localStorage.setItem('kyub_profile', JSON.stringify(this.profile)); },
+  saveProfile() {
+    try {
+      localStorage.setItem('kyub_profile', JSON.stringify(this.profile));
+    } catch (e) {
+      console.warn("Could not save profile to localStorage (likely disk full):", e);
+    }
+  },
 
   showScreen(id) {
     document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
@@ -131,7 +139,11 @@ const App = {
   dismissPWA() {
     const banner = document.getElementById('pwa-banner');
     if(banner) banner.classList.remove('show');
-    localStorage.setItem('kyub_pwa_dismissed', '1');
+    try {
+      localStorage.setItem('kyub_pwa_dismissed', '1');
+    } catch (e) {
+      console.warn("Could not save PWA dismissal to localStorage:", e);
+    }
   },
 
   // === ONBOARDING ===
