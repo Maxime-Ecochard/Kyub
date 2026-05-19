@@ -11,10 +11,38 @@ const App = {
   deferredPrompt: null,
 
   init() {
+    // Force clean old service worker caches once
+    const CURRENT_VERSION = '2.2';
+    try {
+      if (localStorage.getItem('kyub_version') !== CURRENT_VERSION) {
+        if ('serviceWorker' in navigator) {
+          navigator.serviceWorker.getRegistrations().then(regs => {
+            regs.forEach(r => r.unregister());
+          });
+        }
+        if ('caches' in window) {
+          caches.keys().then(keys => keys.forEach(k => caches.delete(k)));
+        }
+        localStorage.setItem('kyub_version', CURRENT_VERSION);
+        if (localStorage.getItem('kyub_version') === CURRENT_VERSION) {
+          setTimeout(() => window.location.reload(), 300);
+          return;
+        }
+      }
+    } catch (e) {
+      console.warn("Could not write version to localStorage (likely disk full or sandboxed):", e);
+    }
+
     this.loadProfile();
     // Register Service Worker
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('./sw.js').catch(console.error);
+      try {
+        navigator.serviceWorker.register('./sw.js').then(reg => {
+          reg.update();
+        }).catch(console.error);
+      } catch (err) {
+        console.warn("Service Worker registration skipped (likely file:// protocol):", err);
+      }
     }
     // PWA Prompt
     window.addEventListener('beforeinstallprompt', (e) => {
@@ -32,19 +60,38 @@ const App = {
     }
     setTimeout(() => {
       const splash = document.querySelector('.splash');
-      splash.classList.add('hide');
-      setTimeout(() => {
-        splash.remove();
+      if (splash) {
+        splash.classList.add('hide');
+        setTimeout(() => {
+          splash.remove();
+          if (!this.profile.nickname) this.showScreen('onboarding');
+          else this.showScreen('feed');
+        }, 500);
+      } else {
         if (!this.profile.nickname) this.showScreen('onboarding');
         else this.showScreen('feed');
-      }, 500);
+      }
     }, 2500);
     this.bindNav();
   },
 
   loadProfile() {
     const saved = localStorage.getItem('kyub_profile');
-    if (saved) this.profile = JSON.parse(saved);
+    if (saved) {
+      try {
+        this.profile = JSON.parse(saved);
+      } catch (e) {
+        this.profile = JSON.parse(JSON.stringify(DEFAULT_PROFILE));
+      }
+    }
+    // Safe fallbacks for older/incomplete profiles
+    if (!this.profile) this.profile = JSON.parse(JSON.stringify(DEFAULT_PROFILE));
+    if (!this.profile.subscribedDisciplines || this.profile.subscribedDisciplines.length === 0) {
+      this.profile.subscribedDisciplines = ['physique', 'chimie'];
+    }
+    if (!this.profile.classLevel) {
+      this.profile.classLevel = 'seconde';
+    }
   },
   saveProfile() { localStorage.setItem('kyub_profile', JSON.stringify(this.profile)); },
 
@@ -232,26 +279,37 @@ const App = {
 
   // === KYUB 3D ===
   renderKyub() {
-    const chapters = CHAPTERS.filter(c =>
-      this.profile.subscribedDisciplines.includes(c.disciplineId));
+    const userLvl = this.profile.classLevel || 'seconde';
+    let chapters = CHAPTERS.filter(c =>
+      c.level === userLvl && (this.profile.subscribedDisciplines || []).includes(c.disciplineId));
+    
+    if (chapters.length === 0) {
+      // Fallback: any chapter for the user's level
+      chapters = CHAPTERS.filter(c => c.level === userLvl);
+    }
+    if (chapters.length === 0) {
+      // Direct fallback to all chapters
+      chapters = CHAPTERS;
+    }
     if (chapters.length === 0) return;
+
     const ch = chapters[this.kyubState.chapterIdx % chapters.length];
     const disc = DISCIPLINES.find(d => d.id === ch.disciplineId);
     const qs = QUESTIONS.filter(q => q.chapterId === ch.id);
     const diff = this.kyubState.difficulty;
 
-    document.getElementById('kyub-chapter').textContent = `${disc.icon} ${ch.title}`;
+    document.getElementById('kyub-chapter').textContent = `${disc ? disc.icon : '🎲'} ${ch.title}`;
     const dots = document.getElementById('kyub-dots');
     dots.innerHTML = [1,2,3,4,5].map(i =>
-      `<div class="kyub-dot${i<=diff?' active':''}" style="${i<=diff?`background:${disc.color}`:''}"></div>`
+      `<div class="kyub-dot${i<=diff?' active':''}" style="${i<=diff?`background:${disc?disc.color:'var(--brand-cyan)'}`:''}"></div>`
     ).join('');
 
     const cube = document.getElementById('cube');
     const faces = cube.querySelectorAll('.cube-face');
     
     // Get questions from new database if available
-    let currentQs = qs;
-    const dbLvl = EDUCATIONAL_DB[this.profile.classLevel || 'seconde'];
+    let currentQs = [];
+    const dbLvl = EDUCATIONAL_DB[userLvl];
     if (dbLvl && dbLvl[ch.disciplineId]) {
       const dbChapter = dbLvl[ch.disciplineId].chapters.find(c => c.id === ch.id || c.title === ch.title);
       if (dbChapter) {
@@ -267,6 +325,10 @@ const App = {
       }
     }
 
+    if (currentQs.length === 0) {
+      currentQs = qs;
+    }
+
     const q = currentQs.find(qq => qq.difficulty === diff) || currentQs[0];
     if (q) {
       faces[0].innerHTML = `<div class="face-question">${q.question}</div>
@@ -276,7 +338,7 @@ const App = {
     } else {
       faces[0].innerHTML = `<div class="face-question" style="opacity:0.6;font-size:1rem">
         Désolé, aucune question disponible pour ce chapitre et ce niveau.<br><br>
-        <button class="btn-primary" style="padding:8px 16px;font-size:0.8rem" onclick="App.showScreen('feed')">Retour au Feed</button>
+        <button class="btn-primary" style="padding:8px 16px;font-size:0.8rem;max-width:200px;margin:0 auto" onclick="App.showScreen('feed')">Retour au Feed</button>
       </div>`;
     }
     // Adjacent faces hint
@@ -543,16 +605,126 @@ const App = {
     const msgs = document.getElementById('chat-messages');
     msgs.innerHTML += `<div class="chat-msg user">${text}</div>`;
     input.value = '';
+    
+    // Auto-scroll
+    msgs.scrollTop = msgs.scrollHeight;
+
     setTimeout(() => {
-      const responses = [
-        `Bonne question ! 🤔 En gros, c'est comme quand tu fais du vélo : tant que personne te freine, tu continues tout droit. C'est l'inertie ! La clé c'est que ΣF = 0 → mouvement rectiligne uniforme. 🚴‍♂️`,
-        `Ah ça c'est un classique ! 😄 Retiens juste : n = m/M (quantité de matière = masse divisée par masse molaire). Le nombre d'Avogadro c'est 6,022 × 10²³. C'est genre… BEAUCOUP d'atomes. 🤯`,
-        `Top comme question ! 💡 Pour résumer en 3 points : 1) L'atome = noyau + électrons, 2) Z = nombre de protons, 3) A = protons + neutrons. Et voilà, t'es prêt pour le contrôle ! ⚛️`,
-      ];
-      msgs.innerHTML += `<div class="chat-msg bot">${responses[Math.floor(Math.random()*responses.length)]}</div>`;
+      const response = this.getBotResponse(text);
+      // Format response text with markdown support (like bold or lists)
+      const formatted = response
+        .replace(/\n/g, '<br>')
+        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\*(.*?)\*/g, '<em>$1</em>')
+        .replace(/👉/g, '👉')
+        .replace(/💡/g, '💡')
+        .replace(/✅/g, '✅')
+        .replace(/🧠/g, '🧠')
+        .replace(/⚡/g, '⚡')
+        .replace(/🏷️/g, '🏷️')
+        .replace(/📝/g, '📝');
+
+      msgs.innerHTML += `<div class="chat-msg bot">${formatted}</div>`;
       msgs.scrollTop = msgs.scrollHeight;
-    }, 800);
+    }, 850);
   },
+
+  getBotResponse(text) {
+    const query = text.toLowerCase();
+    
+    // Help commands
+    if (query.includes('aide') || query.includes('help') || query.includes('comment') || query.includes('kyub') || query.includes('fonctionne')) {
+      return `🎲 **Comment fonctionne Kyub ?**\n\n1. **Le Feed** : Découvre chaque jour des anecdotes et des QCM flash.\n2. **Le Kyub 3D** : Swipe pour changer de difficulté. Réponds aux questions directement sur les faces du cube.\n3. **Flash-Swipe** : Révise rapidement avec le paquet de cartes. Swipe à droite si tu connais, à gauche si tu dois réviser.\n4. **Grand Kyub** : Évalue-toi sur 6 faces pour forger ton cube dans un matériau rare !`;
+    }
+    
+    const db = EDUCATIONAL_DB[this.profile.classLevel || 'seconde'] || EDUCATIONAL_DB['seconde'];
+    let bestMatch = null;
+    let matchType = '';
+    
+    // Search chapters and questions
+    for (const discId in db) {
+      const disc = db[discId];
+      if (disc.chapters) {
+        for (const ch of disc.chapters) {
+          // Chapter title match
+          if (query.includes(ch.title.toLowerCase()) || ch.title.toLowerCase().split(' ').some(w => w.length > 3 && query.includes(w))) {
+            bestMatch = { discId, ch };
+            matchType = 'chapter';
+            break;
+          }
+          // QCM match
+          if (ch.qcm) {
+            for (const q of ch.qcm) {
+              if (query.includes(q.q.toLowerCase()) || q.q.toLowerCase().split(' ').some(w => w.length > 4 && query.includes(w))) {
+                bestMatch = { discId, ch, q };
+                matchType = 'qcm';
+                break;
+              }
+            }
+          }
+          // Flashcard match
+          if (ch.flashcards) {
+            for (const fc of ch.flashcards) {
+              if (query.includes(fc.r.toLowerCase())) {
+                bestMatch = { discId, ch, fc };
+                matchType = 'flashcard';
+                break;
+              }
+            }
+          }
+          if (bestMatch) break;
+        }
+      }
+      if (bestMatch) break;
+    }
+    
+    if (bestMatch) {
+      const discObj = DISCIPLINES.find(d => d.id === bestMatch.discId);
+      const discName = discObj ? discObj.name : bestMatch.discId;
+      if (matchType === 'chapter') {
+        const qSample = bestMatch.ch.qcm && bestMatch.ch.qcm[0];
+        return `📖 En **${discName}** (Chapitre : *${bestMatch.ch.title}*), voici un exemple de question clé :\n\n👉 **${qSample ? qSample.q : 'Concept clé'}**\n💡 *Explication* : ${qSample ? qSample.e : 'Réviser dans l\'app'}\n\nTu peux tester ce chapitre complet sur ton Kyub 3D !`;
+      }
+      if (matchType === 'qcm') {
+        return `💡 En **${discName}**, voici ce qu'il faut savoir :\n\n❓ **${bestMatch.q.q}**\n✅ *Bonne réponse* : **${bestMatch.q.a[bestMatch.q.c]}**\n🧠 *Explication* : ${bestMatch.q.e}`;
+      }
+      if (matchType === 'flashcard') {
+        return `⚡ Fiche Mémoire (**${discName}**) :\n\n🏷️ **Terme** : *${bestMatch.fc.r}*\n📝 **Définition** : *${bestMatch.fc.v}*\n\nRetrouve cette carte dans ton deck de révision !`;
+      }
+    }
+    
+    // Quick keyword matching fallbacks
+    if (query.includes('math') || query.includes('calcul')) {
+      return `📐 **Révision Mathématiques** :\nPour la classe de Seconde, n'oublie pas les identités remarquables comme *(a+b)² = a² + 2ab + b²* et *(a-b)(a+b) = a² - b²*. Quel chapitre aimerais-tu aborder ?`;
+    }
+    if (query.includes('atome') || query.includes('proton') || query.includes('electron') || query.includes('électron') || query.includes('noyau')) {
+      return `⚛️ **Zoom sur l'Atome** :\nIl est constitué d'un noyau central (comprenant des protons chargés positivement et des neutrons de charge nulle) et d'un nuage d'électrons chargés négativement. L'atome est électriquement neutre.`;
+    }
+    if (query.includes('mole') || query.includes('avogadro') || query.includes('matière')) {
+      return `🧪 **La Mole & Masse Molaire** :\nUne mole est un paquet contenant exactement *6,022 × 10²³* entités (atomes ou molécules). Formule indispensable : *n = m / M* (quantité de matière = masse / masse molaire).`;
+    }
+    if (query.includes('force') || query.includes('inertie') || query.includes('mouvement')) {
+      return `🚴‍♂️ **Principe d'inertie** :\nSi les forces exercées sur un objet se compensent (somme des forces = 0), l'objet reste immobile ou conserve son mouvement rectiligne uniforme. C'est l'inertie !`;
+    }
+    if (query.includes('adn') || query.includes('cellule') || query.includes('gène') || query.includes('mutation')) {
+      return `🧬 **SVT Express** :\nL'ADN (Acide DésoxyriboNucléique) est le support universel de l'information génétique. Une cellule contient des organites comme le noyau où loge l'ADN. Les mutations modifient la séquence d'ADN et créent de nouveaux allèles.`;
+    }
+    if (query.includes('histoire') || query.includes('empire') || query.includes('grec') || query.includes('romain')) {
+      return `📜 **Rappel Histoire** :\nEn Seconde, on étudie le monde méditerranéen antique : l'empreinte grecque (démocratie athénienne, cités) et l'empire romain (pax romana, cités gallo-romaines). Pose-moi une question sur ces notions !`;
+    }
+    if (query.includes('géo') || query.includes('géographie') || query.includes('développement')) {
+      return `🌍 **Rappel Géographie** :\nLe programme porte sur les nouveaux enjeux du développement face à la croissance démographique et aux ressources limitées. Quels concepts veux-tu clarifier ?`;
+    }
+    if (query.includes('ses') || query.includes('économie') || query.includes('social')) {
+      return `📊 **Introduction aux SES** :\nOn y étudie comment les ménages et les entreprises font des choix économiques (marché, consommation, production) et comment s'organise le lien social.`;
+    }
+    if (query.includes('anglais') || query.includes('english') || query.includes('espagnol') || query.includes('langue')) {
+      return `🇬🇧🇪🇸 **Langues vivantes** :\nLe meilleur moyen de progresser est d'utiliser les flashcards pour mémoriser le vocabulaire clé régulièrement. Quel terme te pose problème ?`;
+    }
+
+    const lvlLabel = this.profile.classLevel === '3eme' ? 'Troisième' : 'Seconde';
+    return `🤔 Je ne suis pas sûr de pouvoir répondre précisément à : "${text}".\n\nJe suis entraîné à t'aider sur le programme officiel de **${lvlLabel}** (Maths, Physique-Chimie, SVT, Histoire-Géo, SES, Français, Anglais, Espagnol).\n\nPose-moi une question claire, par exemple :\n- *"C'est quoi un isotope ?"*\n- *"Explique la mole"*\n- *"Comment fonctionne le principe d'inertie ?"*\n- *"Formule de la vitesse"*`;
+  }
 
   // === GRAND KYUB (6-face evaluation) ===
   renderGrandKyub() {
