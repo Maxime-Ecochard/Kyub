@@ -225,8 +225,8 @@ const App = {
       }
       div.innerHTML = `
         <div class="post-header">
-          <div class="post-avatar" style="background:${disc.color}22;border:2px solid ${disc.color}">${disc.icon}</div>
-          <div class="post-meta"><h4>${disc.name}</h4><span>Il y a ${Math.floor(Math.random()*12)+1}h</span></div>
+          <div class="post-avatar" style="background:${disc?disc.color:'var(--brand-cyan)'}22;border:2px solid ${disc?disc.color:'var(--brand-cyan)'}">${disc?disc.icon:'📚'}</div>
+          <div class="post-meta"><h4>${disc?disc.name:'Discipline'}</h4><span>Il y a ${Math.floor(Math.random()*12)+1}h</span></div>
         </div>
         <div class="post-body">${body}</div>
         <div class="post-actions">
@@ -365,7 +365,7 @@ const App = {
     faces[4].innerHTML = `<div style="font-size:2rem;margin-bottom:12px">🚪</div><p style="color:var(--text-muted);font-size:.85rem">Quitter le Kyub</p>`;
 
     cube.style.transform = 'rotateY(0) rotateX(0)';
-    cube.style.borderColor = disc.color;
+    cube.style.borderColor = disc ? disc.color : 'var(--brand-cyan)';
     this.initKyubSwipe(disc);
   },
 
@@ -431,7 +431,7 @@ const App = {
       subDiscs.forEach(dId => {
         if (dbLvl[dId]) {
           dbLvl[dId].chapters.forEach(ch => {
-            ch.flashcards.forEach((fc, idx) => {
+            (ch.flashcards || []).forEach((fc, idx) => {
               allDbCards.push({
                 id: `db-fc-${dId}-${idx}`,
                 chapterId: ch.id,
@@ -775,10 +775,10 @@ const App = {
       const face = this.grandKyubFace;
       if (face >= 6) {
         const mat = this.grandKyubScore >= 6 ? 'plasma' : this.grandKyubScore >= 5 ? 'or' : this.grandKyubScore >= 4 ? 'titane' : this.grandKyubScore >= 2 ? 'acier' : 'graphite';
-        const matData = KYUB_MATERIALS.find(m => m.id === mat);
+        const matData = KYUB_MATERIALS.find(m => m.id === mat) || KYUB_MATERIALS[0];
         container.innerHTML = `<div class="gk-result">
           <div class="gk-cube-reward" style="border-color:${matData.color};box-shadow:0 0 30px ${matData.color}40">
-            <span style="font-size:2.5rem">${disc.icon}</span>
+            <span style="font-size:2.5rem">${disc ? disc.icon : '🎲'}</span>
             <span style="color:${matData.color};font-weight:700;font-size:1.1rem">${matData.name}</span>
           </div>
           <h2 style="margin:20px 0 8px">Kyub complété !</h2>
@@ -787,6 +787,16 @@ const App = {
         </div>`;
         return;
       }
+      
+      if (!qs || qs.length === 0) {
+        container.innerHTML = `<div class="gk-result">
+          <h2 style="margin:20px 0 8px">Oups !</h2>
+          <p style="color:var(--text-muted)">Aucune question disponible pour ce chapitre.</p>
+          <button class="btn-primary" style="margin-top:24px;max-width:280px" onclick="App.showScreen('feed')">Retour au Feed</button>
+        </div>`;
+        return;
+      }
+
       const q = qs[face % qs.length];
       const labels = ['Définition','Application','Application','Analyse','Analyse','Master 🏆'];
       const faceColors = ['#22C55E','#3B82F6','#3B82F6','#F59E0B','#F59E0B','#EF4444'];
