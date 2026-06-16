@@ -78,7 +78,12 @@ const App = {
   },
 
   loadProfile() {
-    const saved = localStorage.getItem('kyub_profile');
+    let saved = null;
+    try {
+      saved = localStorage.getItem('kyub_profile');
+    } catch (e) {
+      console.warn('localStorage not available', e);
+    }
     if (saved) {
       try {
         this.profile = JSON.parse(saved);
