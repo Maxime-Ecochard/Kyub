@@ -11,55 +11,59 @@ const App = {
   deferredPrompt: null,
 
   init() {
-    // Force clean old service worker caches once
+    // Clean service worker caches asynchronously — NO return, NO reload loop
     const CURRENT_VERSION = '2.2';
-    if (window.location.protocol !== 'file:') {
-      try {
-        if (localStorage.getItem('kyub_version') !== CURRENT_VERSION) {
-          if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.getRegistrations().then(regs => {
-              regs.forEach(r => r.unregister());
-            });
-          }
-          if ('caches' in window) {
-            caches.keys().then(keys => keys.forEach(k => caches.delete(k)));
-          }
-          localStorage.setItem('kyub_version', CURRENT_VERSION);
-          if (localStorage.getItem('kyub_version') === CURRENT_VERSION) {
-            setTimeout(() => window.location.reload(), 300);
-            return;
-          }
+    try {
+      if (localStorage.getItem('kyub_version') !== CURRENT_VERSION) {
+        if ('serviceWorker' in navigator) {
+          navigator.serviceWorker.getRegistrations().then(regs => {
+            regs.forEach(r => r.unregister());
+          });
         }
-      } catch (e) {
-        console.warn("Could not write version to localStorage (likely disk full or sandboxed):", e);
+        if ('caches' in window) {
+          caches.keys().then(keys => keys.forEach(k => caches.delete(k)));
+        }
+        localStorage.setItem('kyub_version', CURRENT_VERSION);
       }
+    } catch (e) {
+      console.warn('Cache cleanup skipped:', e);
     }
 
     this.loadProfile();
+
     // Register Service Worker
-    if ('serviceWorker' in navigator) {
+    if ('serviceWorker' in navigator && window.location.protocol !== 'file:') {
       try {
         navigator.serviceWorker.register('./sw.js').then(reg => {
           reg.update();
         }).catch(console.error);
       } catch (err) {
-        console.warn("Service Worker registration skipped (likely file:// protocol):", err);
+        console.warn('Service Worker registration skipped:', err);
       }
     }
-    // PWA Prompt
+
+    // PWA Install Prompt
     window.addEventListener('beforeinstallprompt', (e) => {
       e.preventDefault();
       this.deferredPrompt = e;
-      if (!localStorage.getItem('kyub_pwa_dismissed')) {
-        document.getElementById('pwa-banner').classList.add('show');
+      try {
+        if (!localStorage.getItem('kyub_pwa_dismissed')) {
+          const banner = document.getElementById('pwa-banner');
+          if (banner) banner.classList.add('show');
+        }
+      } catch (e) {
+        console.warn('PWA banner skipped:', e);
       }
     });
+
     // Reset disciplines for fresh onboarding
     if (!this.profile.nickname) {
       this.profile.subscribedDisciplines = [];
       this.profile.specialties = [];
       this.profile.classLevel = '';
     }
+
+    // Always fire the splash transition — no early return above can block this
     setTimeout(() => {
       const splash = document.querySelector('.splash');
       if (splash) {
@@ -73,7 +77,8 @@ const App = {
         if (!this.profile.nickname) this.showScreen('onboarding');
         else this.showScreen('feed');
       }
-    }, 2500);
+    }, 2000);
+
     this.bindNav();
   },
 
