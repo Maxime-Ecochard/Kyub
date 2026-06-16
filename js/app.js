@@ -746,7 +746,7 @@ const App = {
 
     const lvlLabel = this.profile.classLevel === '3eme' ? 'Troisième' : 'Seconde';
     return `🤔 Je ne suis pas sûr de pouvoir répondre précisément à : "${text}".\n\nJe suis entraîné à t'aider sur le programme officiel de **${lvlLabel}** (Maths, Physique-Chimie, SVT, Histoire-Géo, SES, Français, Anglais, Espagnol).\n\nPose-moi une question claire, par exemple :\n- *"C'est quoi un isotope ?"*\n- *"Explique la mole"*\n- *"Comment fonctionne le principe d'inertie ?"*\n- *"Formule de la vitesse"*`;
-  }
+  },
 
   // === GRAND KYUB (6-face evaluation) ===
   renderGrandKyub() {
@@ -771,8 +771,32 @@ const App = {
           correctAnswer: q.c,
           explanation: q.e,
           difficulty: q.d
-        })).sort((a,b) => a.difficulty - b.difficulty);
+        }));
       }
+    }
+
+    // Générer un Grand Kyub unique de 6 questions (permet >3 Grand Kyubs par chapitre grâce aux 20 qst)
+    let selectedQs = [];
+    if (qs.length >= 6) {
+      const shuffle = (arr) => arr.slice().sort(() => Math.random() - 0.5);
+      const d1 = shuffle(qs.filter(q => q.difficulty === 1));
+      const d2 = shuffle(qs.filter(q => q.difficulty === 2));
+      const d3 = shuffle(qs.filter(q => q.difficulty >= 3));
+      
+      const getQ = (arr, backupArr) => {
+        if (arr.length > 0) return arr.pop();
+        if (backupArr && backupArr.length > 0) return backupArr.pop();
+        return qs[Math.floor(Math.random() * qs.length)];
+      };
+
+      selectedQs.push(getQ(d1, qs)); // Face 1: Définition (diff 1)
+      selectedQs.push(getQ(d1, d2)); // Face 2: Application (diff 1-2)
+      selectedQs.push(getQ(d2, qs)); // Face 3: Application (diff 2)
+      selectedQs.push(getQ(d2, d3)); // Face 4: Analyse (diff 2-3)
+      selectedQs.push(getQ(d3, d2)); // Face 5: Analyse (diff 3)
+      selectedQs.push(getQ(d3, qs)); // Face 6: Master (diff 3+)
+    } else {
+      selectedQs = qs; // Sécurité si < 6 questions
     }
 
     const container = document.getElementById('grandkyub-content');
@@ -793,7 +817,7 @@ const App = {
         return;
       }
       
-      if (!qs || qs.length === 0) {
+      if (!selectedQs || selectedQs.length === 0) {
         container.innerHTML = `<div class="gk-result">
           <h2 style="margin:20px 0 8px">Oups !</h2>
           <p style="color:var(--text-muted)">Aucune question disponible pour ce chapitre.</p>
@@ -802,7 +826,7 @@ const App = {
         return;
       }
 
-      const q = qs[face % qs.length];
+      const q = selectedQs[face % selectedQs.length];
       const labels = ['Définition','Application','Application','Analyse','Analyse','Master 🏆'];
       const faceColors = ['#22C55E','#3B82F6','#3B82F6','#F59E0B','#F59E0B','#EF4444'];
       container.innerHTML = `
